@@ -2,7 +2,6 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
-
 MD5 md5 = MD5.Create();
 
 string rootPath;
@@ -28,16 +27,16 @@ foreach (string path in info)
     {
         Console.WriteLine($"{folderName}");
 
-        var mi = modifyModinfo(modInfo, folderName);
+        var (changed, ignored, notFound, missed) = await modifyModinfo(modInfo, folderName);
 
-        Console.WriteLine($"{mi.changed} 변경됨, {mi.ignored} 유지됨, {mi.notFound}, 파일 없음, {mi.missed} modinfo에 없음");
+        Console.WriteLine($"{changed} 변경됨, {ignored} 유지됨, {notFound}, 파일 없음, {missed} modinfo에 없음");
         Console.WriteLine();
     }
 }
 Console.Write("계속하려면 아무 키나 누르십시오...");
 Console.Read();
 
-(int changed, int ignored, int notFound, int missed) modifyModinfo(FileInfo modInfo, string path)
+async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(FileInfo modInfo, string path)
 {
     (int changed, int ignored, int notFound, int missed) = (0, 0, 0, 0);
     XmlDocument doc = GetDocumentByPath(modInfo);
@@ -46,35 +45,27 @@ Console.Read();
     {
         XmlNodeList nodes = GetFileNodes(doc);
 
-        foreach (XmlNode node in nodes)
+        foreach (var data in nodes.Cast<XmlNode>()
+            .Select(e => (node: e, path: GetPathbyNode(e, files)))
+            .Select(n => (code: ChangeResource(n.path, (XmlElement)n.node), n.path)))
         {
-            string checkPath = node.InnerText.Replace("\\", "/");
-            string? fullPath = files
-                .Where(p => p.EndsWith(checkPath))
-                .FirstOrDefault();
-            if (fullPath is null)
-            {
-                Console.WriteLine($"경고 : {checkPath}가 없습니다.");
-                notFound++;
-                continue;
+
+            switch (await data.code)
+            { 
+                case FileStatus.notFound:
+                    notFound++;
+                    break;
+                case FileStatus.ignored:
+                    ignored++;
+                    break;
+                case FileStatus.changed:
+                    changed++;
+                    break;
             }
-
-            FileStream ns = File.OpenRead(fullPath);
-            XmlElement element = (XmlElement)node;
-
-            string oldHash = element.GetAttribute("md5"); 
-
-            string hash = CalculateMD5ByFile(ns);
-            element.SetAttribute("md5", hash);
-
-            string newHash = element.GetAttribute("md5");
-            if (oldHash != newHash)
+            if (data.path is not null)
             {
-                Console.WriteLine($"{checkPath}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..");
-                changed++;
+                files.Remove(data.path);
             }
-            else ignored++;
-            files.Remove(fullPath);
         }
         using FileStream stream = modInfo.Open(FileMode.Create);
         doc.Save(stream);
@@ -90,7 +81,36 @@ Console.Read();
     missed = files.Count;
     return (changed, ignored, notFound, missed);
 }
+string? GetPathbyNode(XmlNode node, IEnumerable<string> files)
+{
+    string checkPath = node.InnerText.Replace("\\", "/");
+    return files
+        .Where(p => p.EndsWith(checkPath))
+        .FirstOrDefault();
+}
+async Task<FileStatus> ChangeResource(string? path, XmlElement node)
+{
+    if (path is null)
+    {
+        Console.WriteLine($"경고 : {path}가 없습니다.");
+        return FileStatus.notFound;
+    }
 
+    FileStream ns = File.OpenRead(path);
+
+    string oldHash = node.GetAttribute("md5");
+
+    string hash = await CalculateMD5ByFile(ns);
+    node.SetAttribute("md5", hash);
+
+    string newHash = node.GetAttribute("md5");
+    if (oldHash != newHash)
+    {
+        Console.WriteLine($"{path}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..");
+        return FileStatus.changed;
+    }
+    else return FileStatus.ignored;
+}
 XmlDocument GetDocumentByPath(FileInfo path)
 {
     XmlDocument doc = new();
@@ -104,12 +124,23 @@ XmlNodeList GetFileNodes(XmlDocument doc) => doc
     .SelectNodes("Mod/Files/File") 
     ?? throw new Exception("유효한 modinfo 파일이 아닙니다.");
 
-string CalculateMD5ByFile(FileStream stream) => md5
-    .ComputeHash(stream)
-    .Aggregate("", (acc, x) => $"{acc}{x:x2}")
-    .ToUpper();
+async Task<string> CalculateMD5ByFile(FileStream stream)
+{
+    byte[] res = await md5
+    .ComputeHashAsync(stream);
+    return res
+        .Aggregate("", (acc, x) => $"{acc}{x:x2}")
+        .ToUpper();
+}
 
 IEnumerable<string> GetAllModinfo(string path) => Directory.GetFiles(path, "*.modinfo", SearchOption.AllDirectories);
 IEnumerable<string> GetAllSources(string path) => Directory.GetFiles(path, "*", SearchOption.AllDirectories)
         .Where(e => !e.EndsWith(".modinfo"))
         .Select(e => e.Replace("\\", "/"));
+
+enum FileStatus
+{
+    changed,
+    ignored,
+    notFound
+}
