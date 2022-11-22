@@ -1,6 +1,7 @@
 ﻿using System.Xml;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.IO;
 
 MD5 md5 = MD5.Create();
 
@@ -44,28 +45,21 @@ async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(F
     try
     {
         XmlNodeList nodes = GetFileNodes(doc);
-
-        foreach (var data in nodes.Cast<XmlNode>()
+        var query = nodes.Cast<XmlNode>()
             .Select(e => (node: e, path: GetPathbyNode(e, files)))
-            .Select(n => (code: ChangeResource(n.path, (XmlElement)n.node), n.path)))
-        {
+            .Select(async n => await ChangeResource(n.path, (XmlElement)n.node));
 
-            switch (await data.code)
-            { 
-                case FileStatus.notFound:
-                    notFound++;
-                    break;
-                case FileStatus.ignored:
-                    ignored++;
-                    break;
-                case FileStatus.changed:
-                    changed++;
-                    break;
-            }
-            if (data.path is not null)
+        foreach (var data in query)
+        {
+            FileStatus code = await data;
+            Console.Write(code.StatusText());
+            if (code.FilePath is not null)
             {
-                files.Remove(data.path);
+                files.Remove(code.FilePath);
             }
+            if (code is Changed) changed++;
+            if (code is Ignored) ignored++;
+            if (code is NotFound) notFound++;
         }
         using FileStream stream = modInfo.Open(FileMode.Create);
         doc.Save(stream);
@@ -90,11 +84,7 @@ string? GetPathbyNode(XmlNode node, IEnumerable<string> files)
 }
 async Task<FileStatus> ChangeResource(string? path, XmlElement node)
 {
-    if (path is null)
-    {
-        Console.WriteLine($"경고 : {path}가 없습니다.");
-        return FileStatus.notFound;
-    }
+    if (path is null) return new NotFound();
 
     FileStream ns = File.OpenRead(path);
 
@@ -104,12 +94,9 @@ async Task<FileStatus> ChangeResource(string? path, XmlElement node)
     node.SetAttribute("md5", hash);
 
     string newHash = node.GetAttribute("md5");
-    if (oldHash != newHash)
-    {
-        Console.WriteLine($"{path}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..");
-        return FileStatus.changed;
-    }
-    else return FileStatus.ignored;
+
+    if (oldHash != newHash) return new Changed(path, oldHash, newHash);
+    else return new Ignored(path);
 }
 XmlDocument GetDocumentByPath(FileInfo path)
 {
@@ -138,9 +125,40 @@ IEnumerable<string> GetAllSources(string path) => Directory.GetFiles(path, "*", 
         .Where(e => !e.EndsWith(".modinfo"))
         .Select(e => e.Replace("\\", "/"));
 
-enum FileStatus
+
+abstract class FileStatus
 {
-    changed,
-    ignored,
-    notFound
+    public abstract string StatusText();
+    public string? FilePath { get; set; }
+
+}
+
+class Changed : FileStatus
+{
+    private string oldHash, newHash;
+    public Changed(string FilePath, string oldHash, string newHash)
+    {
+        this.oldHash = oldHash;
+        this.newHash = newHash;
+        this.FilePath = FilePath;
+    }
+    public override string StatusText() => $"{FilePath}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..\n";
+}
+
+class Ignored : FileStatus
+{
+    public Ignored(string FilePath)
+    {
+        this.FilePath = FilePath;
+    }
+    public override string StatusText() => string.Empty;
+}
+
+class NotFound : FileStatus
+{
+    public NotFound()
+    {
+        FilePath = null;
+    }
+    public override string StatusText() => $"경고 : {FilePath}가 없습니다.\n";
 }
