@@ -16,7 +16,7 @@ else
     rootPath = Console.ReadLine() ?? Directory.GetCurrentDirectory();
     rootPath = rootPath.Trim('\"');
 }
-string[] info = GetAllModinfo(rootPath);
+string[] info = GetAllModinfo(rootPath).ToArray();
 
 Regex regex = new(@"[/\\][^/\\]+\..+"); // Select File Name Only in All Path.
 foreach (string path in info)
@@ -41,11 +41,7 @@ Console.Read();
 {
     (int changed, int ignored, int notFound, int missed) = (0, 0, 0, 0);
     XmlDocument doc = GetDocumentByPath(modInfo);
-    List<string> files = Directory
-        .EnumerateFiles(path, "*", SearchOption.AllDirectories)
-        .Select(e => e.Replace("\\", "/"))
-        .Where(e => !e.EndsWith(".modinfo"))
-        .ToList();
+    List<string> files = GetAllSources(path).ToList();
     try
     {
         XmlNodeList nodes = GetFileNodes(doc);
@@ -113,4 +109,7 @@ string CalculateMD5ByFile(FileStream stream) => md5
     .Aggregate("", (acc, x) => $"{acc}{x:x2}")
     .ToUpper();
 
-string[] GetAllModinfo(string path) => Directory.GetFiles(path, "*.modinfo", SearchOption.AllDirectories);
+IEnumerable<string> GetAllModinfo(string path) => Directory.GetFiles(path, "*.modinfo", SearchOption.AllDirectories);
+IEnumerable<string> GetAllSources(string path) => Directory.GetFiles(path, "*", SearchOption.AllDirectories)
+        .Where(e => !e.EndsWith(".modinfo"))
+        .Select(e => e.Replace("\\", "/"));
