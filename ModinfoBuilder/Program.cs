@@ -46,14 +46,13 @@ async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(F
     {
         XmlNodeList nodes = GetFileNodes(doc);
         var query = nodes.Cast<XmlNode>()
-            .Select(e => (node: e, path: GetPathbyNode(e, files)))
-            .Select(async n => await ChangeResource(n.path, (XmlElement)n.node));
+            .Select(async n => await ChangeResource(files, (XmlElement)n));
 
         foreach (var data in query)
         {
             FileStatus code = await data;
             Console.Write(code.StatusText());
-            if (code.FilePath is not null)
+            if (code.FileBeRemove())
             {
                 files.Remove(code.FilePath);
             }
@@ -75,16 +74,13 @@ async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(F
     missed = files.Count;
     return (changed, ignored, notFound, missed);
 }
-string? GetPathbyNode(XmlNode node, IEnumerable<string> files)
+async Task<FileStatus> ChangeResource(IEnumerable<string> files, XmlElement node)
 {
     string checkPath = node.InnerText.Replace("\\", "/");
-    return files
+    string? path = files
         .Where(p => p.EndsWith(checkPath))
         .FirstOrDefault();
-}
-async Task<FileStatus> ChangeResource(string? path, XmlElement node)
-{
-    if (path is null) return new NotFound();
+    if (path is null) return new NotFound(checkPath);
 
     FileStream ns = File.OpenRead(path);
 
@@ -129,13 +125,14 @@ IEnumerable<string> GetAllSources(string path) => Directory.GetFiles(path, "*", 
 abstract class FileStatus
 {
     public abstract string StatusText();
-    public string? FilePath { get; set; }
+    public abstract bool FileBeRemove();
+    public string FilePath { get; set; } = string.Empty;
 
 }
 
 class Changed : FileStatus
 {
-    private string oldHash, newHash;
+    private readonly string oldHash, newHash;
     public Changed(string FilePath, string oldHash, string newHash)
     {
         this.oldHash = oldHash;
@@ -143,6 +140,7 @@ class Changed : FileStatus
         this.FilePath = FilePath;
     }
     public override string StatusText() => $"{FilePath}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..\n";
+    public override bool FileBeRemove() => true;
 }
 
 class Ignored : FileStatus
@@ -152,13 +150,15 @@ class Ignored : FileStatus
         this.FilePath = FilePath;
     }
     public override string StatusText() => string.Empty;
+    public override bool FileBeRemove() => true;
 }
 
 class NotFound : FileStatus
 {
-    public NotFound()
+    public NotFound(string CheckPath)
     {
-        FilePath = null;
+        FilePath = CheckPath;
     }
     public override string StatusText() => $"경고 : {FilePath}가 없습니다.\n";
+    public override bool FileBeRemove() => false;
 }
