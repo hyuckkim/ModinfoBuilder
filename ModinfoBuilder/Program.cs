@@ -44,11 +44,9 @@ async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(F
     List<string> files = GetAllSources(path).ToList();
     try
     {
-        XmlNodeList nodes = GetFileNodes(doc);
-        var query = nodes.Cast<XmlNode>()
-            .Select(async n => await ChangeResource(files, (XmlElement)n));
-
-        foreach (var data in query)
+        foreach (Task<FileStatus>? data in GetFileNodes(doc)
+            .Cast<XmlNode>()
+            .Select(async n => await ChangeResource(files, (XmlElement)n)))
         {
             FileStatus code = await data;
             Console.Write(code.StatusText());
