@@ -1,7 +1,6 @@
 ﻿using System.Xml;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
-using System.IO;
 
 MD5 md5 = MD5.Create();
 
@@ -16,13 +15,13 @@ else
     rootPath = Console.ReadLine() ?? Directory.GetCurrentDirectory();
     rootPath = rootPath.Trim('\"');
 }
-string[] info = GetAllModinfo(rootPath).ToArray();
+string[] info = rootPath.GetAllModinfo().ToArray();
 
-Regex regex = new(@"[/\\][^/\\]+\..+"); // Select File Name Only in All Path.
 foreach (string path in info)
 {
     FileInfo modInfo = new(path);
-    string folderName = regex.Replace(path, ""); // Remove Filename and use paths only
+    
+    string folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", ""); // Remove file name and use paths only
 
     if (modInfo is not null)
     {
@@ -37,44 +36,52 @@ foreach (string path in info)
 Console.Write("계속하려면 아무 키나 누르십시오...");
 Console.Read();
 
-async Task<(int changed, int ignored, int notFound, int missed)> modifyModinfo(FileInfo modInfo, string path)
+
+async Task<ModinfoRecord> modifyModinfo(FileInfo modInfo, string path)
 {
-    (int changed, int ignored, int notFound, int missed) = (0, 0, 0, 0);
+    ModinfoRecord rec = (0, 0, 0, 0);
     XmlDocument doc = GetDocumentByPath(modInfo);
-    List<string> files = GetAllSources(path).ToList();
+    List<string> unusedFiles = path.GetAllSources().ToList();
     try
     {
         foreach (Task<FileStatus>? data in GetFileNodes(doc)
             .Cast<XmlNode>()
-            .Select(async n => await ChangeResource(files, (XmlElement)n)))
+            .Select(async n => await ChangeResource(unusedFiles, (XmlElement)n)))
         {
-            FileStatus code = await data;
-            Console.Write(code.StatusText());
-            if (code.FileBeRemove())
-            {
-                files.Remove(code.FilePath);
-            }
-            if (code is Changed) changed++;
-            if (code is Ignored) ignored++;
-            if (code is NotFound) notFound++;
+            FileStatus code = ResolveFileStatus(await data, unusedFiles);
+
+            if (code is Changed) rec.changed++;
+            if (code is Ignored) rec.ignored++;
+            if (code is NotFound) rec.notFound++;
         }
-        using FileStream stream = modInfo.Open(FileMode.Create);
-        doc.Save(stream);
     }
     catch (Exception e)
     {
         Console.WriteLine($"{modInfo.Name}이 {e}");
     }
-    foreach (string file in files)
+    foreach (string file in unusedFiles)
     {
         Console.WriteLine($"경고 : {file}이 modinfo에 없습니다.");
     }
-    missed = files.Count;
-    return (changed, ignored, notFound, missed);
+    using FileStream stream = modInfo.Open(FileMode.Create);
+    doc.Save(stream);
+
+    rec.missed = unusedFiles.Count;
+    return rec;
+}
+FileStatus ResolveFileStatus(FileStatus code, List<string> unusedFiles)
+{
+    Console.Write(code.StatusText);
+    if (code.FileExists)
+    {
+        unusedFiles.Remove(code.FilePath);
+    }
+
+    return code;
 }
 async Task<FileStatus> ChangeResource(IEnumerable<string> files, XmlElement node)
 {
-    string checkPath = node.InnerText.Replace("\\", "/");
+    string checkPath = node.InnerText.ReplaceSlash();
     string? path = files
         .Where(p => p.EndsWith(checkPath))
         .FirstOrDefault();
@@ -114,49 +121,14 @@ async Task<string> CalculateMD5ByFile(FileStream stream)
         .ToUpper();
 }
 
-IEnumerable<string> GetAllModinfo(string path) => Directory.GetFiles(path, "*.modinfo", SearchOption.AllDirectories);
-IEnumerable<string> GetAllSources(string path) => Directory.GetFiles(path, "*", SearchOption.AllDirectories)
-        .Where(e => !e.EndsWith(".modinfo"))
-        .Select(e => e.Replace("\\", "/"));
-
-
-abstract class FileStatus
+internal static class Extension
 {
-    public abstract string StatusText();
-    public abstract bool FileBeRemove();
-    public string FilePath { get; set; } = string.Empty;
+    public static string ReplaceSlash(this string s) => s.Replace("\\", "/");
 
-}
-
-class Changed : FileStatus
-{
-    private readonly string oldHash, newHash;
-    public Changed(string FilePath, string oldHash, string newHash)
-    {
-        this.oldHash = oldHash;
-        this.newHash = newHash;
-        this.FilePath = FilePath;
-    }
-    public override string StatusText() => $"{FilePath}의 해시를 수정했습니다 : {oldHash[..8]}.. -> {newHash[..8]}..\n";
-    public override bool FileBeRemove() => true;
-}
-
-class Ignored : FileStatus
-{
-    public Ignored(string FilePath)
-    {
-        this.FilePath = FilePath;
-    }
-    public override string StatusText() => string.Empty;
-    public override bool FileBeRemove() => true;
-}
-
-class NotFound : FileStatus
-{
-    public NotFound(string CheckPath)
-    {
-        FilePath = CheckPath;
-    }
-    public override string StatusText() => $"경고 : {FilePath}가 없습니다.\n";
-    public override bool FileBeRemove() => false;
+    public static IEnumerable<string> GetAllModinfo(this string path) 
+        => Directory.GetFiles(path, "*.modinfo", SearchOption.AllDirectories);
+    public static IEnumerable<string> GetAllSources(this string path) 
+        => Directory.GetFiles(path, "*", SearchOption.AllDirectories)
+            .Where(e => !e.EndsWith(".modinfo"))
+            .Select(e => e.ReplaceSlash());
 }
