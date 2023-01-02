@@ -15,6 +15,10 @@ else
     rootPath = Console.ReadLine() ?? Directory.GetCurrentDirectory();
     rootPath = rootPath.Trim('\"');
 }
+rootPath = new DirectoryInfo(rootPath).FullName.ReplaceSlash();
+Console.WriteLine($"> {rootPath}");
+Console.WriteLine();
+
 string[] info = rootPath.GetAllModinfo().ToArray();
 
 foreach (string path in info)
@@ -25,7 +29,7 @@ foreach (string path in info)
 
     if (modInfo is not null)
     {
-        Console.WriteLine($"{folderName}");
+        Console.WriteLine($"- {folderName}");
 
         var (changed, ignored, notFound, missed) = await modifyModinfo(modInfo, folderName);
 
@@ -74,7 +78,7 @@ FileStatus ResolveFileStatus(FileStatus code, List<string> unusedFiles)
     Console.Write(code.StatusText);
     if (code.FileExists)
     {
-        unusedFiles.Remove(code.FilePath);
+        unusedFiles.Remove(code.FullPath);
     }
 
     return code;
@@ -96,8 +100,8 @@ async Task<FileStatus> ChangeResource(IEnumerable<string> files, XmlElement node
 
     string newHash = node.GetAttribute("md5");
 
-    if (oldHash != newHash) return new Changed(path, oldHash, newHash);
-    else return new Ignored(path);
+    if (oldHash != newHash) return new Changed(checkPath, oldHash, newHash, path);
+    else return new Ignored(checkPath, path);
 }
 XmlDocument GetDocumentByPath(FileInfo path)
 {
