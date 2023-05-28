@@ -43,11 +43,12 @@ async Task<ModinfoRecord> modifyModinfo(FileInfo modInfo, string path)
     List<string> unusedFiles = path.GetAllSources().ToList();
     try
     {
-        foreach (Task<FileStatus>? data in GetFileNodes(doc)
+        foreach (XmlElement data in GetFileNodes(doc)
             .Cast<XmlNode>()
-            .Select(async n => await ChangeResource(unusedFiles, (XmlElement)n)))
+            .Select(node => (XmlElement)node))
         {
-            rec.AddFileStatus(ResolveFileStatus(await data, unusedFiles));
+            var d = await ChangeResource(unusedFiles, data);
+            rec.AddFileStatus(ResolveFileStatus(d, unusedFiles));
         }
     }
     catch (Exception e)
