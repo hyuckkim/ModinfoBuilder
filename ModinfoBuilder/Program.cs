@@ -48,7 +48,7 @@ async Task<ModinfoRecord> modifyModinfo(FileInfo modInfo, string path)
             .Select(node => (XmlElement)node))
         {
             var d = await ChangeResource(unusedFiles, data);
-            rec.AddFileStatus(ResolveFileStatus(d, unusedFiles));
+            rec = rec.AddFileStatus(ResolveFileStatus(d, unusedFiles));
         }
     }
     catch (Exception e)
