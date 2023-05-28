@@ -4,18 +4,13 @@ using System.Text.RegularExpressions;
 
 MD5 md5 = MD5.Create();
 
-string rootPath;
-if (args.Length > 0)
+if (args.Length == 0)
 {
-    rootPath = args[0];
+    Console.Write("사용 방법: ModinfoBuilder.exe <폴더 경로>");
+    return;
 }
-else
-{
-    Console.Write("경로를 입력하십시오: ");
-    rootPath = Console.ReadLine() ?? Directory.GetCurrentDirectory();
-    rootPath = rootPath.Trim('\"');
-}
-rootPath = new DirectoryInfo(rootPath).FullName.ReplaceSlash();
+
+string rootPath = new DirectoryInfo(args[0]).FullName.ReplaceSlash();
 Console.WriteLine($"> {rootPath}");
 Console.WriteLine();
 
