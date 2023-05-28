@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ModinfoBuilder": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\translate\\vp_kr"
+    }
+  }
+}
