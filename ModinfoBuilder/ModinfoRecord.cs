@@ -9,4 +9,10 @@
     {
         return new ModinfoRecord(value.changed, value.ignored, value.notFound, value.missed);
     }
+    public readonly ModinfoRecord AddFileStatus(FileStatus status) =>
+        new(
+            changed + (status.GetType() == typeof(Changed) ? 1 : 0),
+            ignored + (status.GetType() == typeof(Ignored) ? 1 : 0),
+            notFound + (status.GetType() == typeof(NotFound) ? 1 : 0),
+            missed);
 }

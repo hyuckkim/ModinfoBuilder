@@ -47,11 +47,7 @@ async Task<ModinfoRecord> modifyModinfo(FileInfo modInfo, string path)
             .Cast<XmlNode>()
             .Select(async n => await ChangeResource(unusedFiles, (XmlElement)n)))
         {
-            FileStatus code = ResolveFileStatus(await data, unusedFiles);
-
-            if (code is Changed) rec.changed++;
-            if (code is Ignored) rec.ignored++;
-            if (code is NotFound) rec.notFound++;
+            rec.AddFileStatus(ResolveFileStatus(await data, unusedFiles));
         }
     }
     catch (Exception e)
