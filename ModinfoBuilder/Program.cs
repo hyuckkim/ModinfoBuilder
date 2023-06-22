@@ -16,13 +16,13 @@ Console.WriteLine();
 
 string[] info = rootPath.GetAllModinfo().ToArray();
 
-foreach (string path in info)
-{
-    FileInfo modInfo = new(path);
+var modinfoList = 
+    from string path in info
+    let modInfo = new FileInfo(path)
+    let folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", "")// Remove file name and use paths only
+    select (modInfo, folderName);
     
-    string folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", ""); // Remove file name and use paths only
-
-    if (modInfo is not null)
+foreach ((FileInfo modInfo, string folderName) in modinfoList)
     {
         Console.WriteLine($"- {folderName}");
 
@@ -31,7 +31,7 @@ foreach (string path in info)
         Console.WriteLine($"{changed} 변경됨, {ignored} 유지됨, {notFound}, 파일 없음, {missed} modinfo에 없음");
         Console.WriteLine();
     }
-}
+
 Console.Write("계속하려면 아무 키나 누르십시오...");
 Console.Read();
 
