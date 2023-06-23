@@ -16,6 +16,10 @@ internal class ModinfoInfo
     private readonly IEnumerable<string> resources;
     private List<string>? unusedFiles;
     ModinfoRecord rec = (0, 0, 0, 0);
+    StringBuilder log = new();
+
+    public StringBuilder Log { get => log; }
+
     public ModinfoInfo(FileInfo file, string path) 
     {
         this.file = file;
@@ -26,7 +30,7 @@ internal class ModinfoInfo
     public async Task<ModinfoRecord> Modify()
     {
         rec = (0, 0, 0, 0);
-        Console.WriteLine($"- {path}");
+        Log.AppendLine($"- {path}");
         XmlDocument doc = GetDocumentByPath(file);
         unusedFiles = resources.ToList();
         try
@@ -41,18 +45,18 @@ internal class ModinfoInfo
         }
         catch (Exception e)
         {
-            Console.WriteLine($"{file.Name}이 {e}");
+            Log.AppendLine($"{file.Name}이 {e}");
         }
         foreach (string file in unusedFiles)
         {
-            Console.WriteLine($"경고 : {file}이 modinfo에 없습니다.");
+            Log.AppendLine($"경고 : {file}이 modinfo에 없습니다.");
         }
         using FileStream stream = file.Open(FileMode.Create);
         doc.Save(stream);
 
         rec.missed = unusedFiles.Count;
-        Console.WriteLine($"{rec.changed} 변경됨, {rec.ignored} 유지됨, {rec.notFound}, 파일 없음, {rec.missed} modinfo에 없음");
-        Console.WriteLine();
+        Log.AppendLine($"{rec.changed} 변경됨, {rec.ignored} 유지됨, {rec.notFound}, 파일 없음, {rec.missed} modinfo에 없음");
+        Log.AppendLine();
         return rec;
     }
 
@@ -87,7 +91,7 @@ internal class ModinfoInfo
     }
     FileStatus ResolveFileStatus(FileStatus code)
     {
-        Console.Write(code.StatusText);
+        Log.Append(code.StatusText);
         if (code.FileExists && unusedFiles != null)
         {
             unusedFiles.Remove(code.FullPath);

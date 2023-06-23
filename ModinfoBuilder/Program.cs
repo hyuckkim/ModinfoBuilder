@@ -23,6 +23,7 @@ var modinfoList =
 foreach (var modinfo in modinfoList)
 {
     await modinfo.Modify();
+    Console.Write(modinfo.Log);
 }
 
 Console.Write("계속하려면 아무 키나 누르십시오...");
