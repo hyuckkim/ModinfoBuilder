@@ -39,7 +39,7 @@ internal class ModinfoInfo
                 .Cast<XmlNode>()
                 .Select(node => (XmlElement)node))
             {
-                var d = await ChangeResource(unusedFiles, data);
+                var d = await ChangeResource(data);
                 rec = rec.AddFileStatus(ResolveFileStatus(d));
             }
         }
@@ -69,11 +69,11 @@ internal class ModinfoInfo
 
         return doc;
     }
-    static async Task<FileStatus> ChangeResource(IEnumerable<string> files, XmlElement node)
+    async Task<FileStatus> ChangeResource(XmlElement node)
     {
         string checkPath = node.InnerText.ReplaceSlash();
-        string? path = files
-            .Where(p => p.EndsWith(checkPath))
+        string? path = unusedFiles
+            ?.Where(p => p.EndsWith(checkPath))
             .FirstOrDefault();
         if (path is null) return new NotFound(checkPath);
 
@@ -81,10 +81,8 @@ internal class ModinfoInfo
 
         string oldHash = node.GetAttribute("md5");
 
-        string hash = await MD5Util.Calculate(ns);
-        node.SetAttribute("md5", hash);
-
-        string newHash = node.GetAttribute("md5");
+        string newHash = await MD5Util.Calculate(ns);
+        node.SetAttribute("md5", newHash);
 
         if (oldHash != newHash) return new Changed(checkPath, oldHash, newHash, path);
         else return new Ignored(checkPath, path);
