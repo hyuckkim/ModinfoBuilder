@@ -1,6 +1,4 @@
-﻿using System.Xml;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using ModinfoBuilder;
 
 if (args.Length == 0)
@@ -40,16 +38,4 @@ internal static class Extension
         => Directory.GetFiles(path, "*", SearchOption.AllDirectories)
             .Where(e => !e.EndsWith(".modinfo"))
             .Select(e => e.ReplaceSlash());
-}
-internal static class MD5Util
-{
-    static readonly MD5 md5 = MD5.Create();
-    public static async Task<string> Calculate(FileStream stream)
-    {
-        byte[] res = await md5
-        .ComputeHashAsync(stream);
-        return res
-            .Aggregate("", (acc, x) => $"{acc}{x:x2}")
-            .ToUpper();
-    }
 }
