@@ -19,19 +19,12 @@ var modinfoList =
     from string path in info
     let modInfo = new FileInfo(path)
     let folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", "")// Remove file name and use paths only
-    select (modInfo, folderName);
+    select new ModinfoInfo(modInfo, folderName);
     
 // Todo : modinfoInfo 클래스를 만들어서 분리!
-foreach ((FileInfo modInfo, string folderName) in modinfoList)
+foreach (var modinfo in modinfoList)
 {
-    ModinfoInfo modinfoData = new(modInfo, folderName);
-
-    Console.WriteLine($"- {folderName}");
-
-    var (changed, ignored, notFound, missed) = await modinfoData.Modify();
-
-    Console.WriteLine($"{changed} 변경됨, {ignored} 유지됨, {notFound}, 파일 없음, {missed} modinfo에 없음");
-    Console.WriteLine();
+    await modinfo.Modify();
 }
 
 Console.Write("계속하려면 아무 키나 누르십시오...");

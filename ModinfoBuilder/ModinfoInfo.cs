@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -11,17 +12,23 @@ internal class ModinfoInfo
 {
     private FileInfo file;
     private string path;
+
+    private readonly IEnumerable<string> resources;
+    private List<string>? unusedFiles;
+    ModinfoRecord rec = (0, 0, 0, 0);
     public ModinfoInfo(FileInfo file, string path) 
     {
         this.file = file;
         this.path = path;
+        resources = path.GetAllSources();
     }
 
     public async Task<ModinfoRecord> Modify()
     {
-        ModinfoRecord rec = (0, 0, 0, 0);
+        rec = (0, 0, 0, 0);
+        Console.WriteLine($"- {path}");
         XmlDocument doc = GetDocumentByPath(file);
-        List<string> unusedFiles = path.GetAllSources().ToList();
+        unusedFiles = resources.ToList();
         try
         {
             foreach (XmlElement data in GetFileNodes(doc)
@@ -29,7 +36,7 @@ internal class ModinfoInfo
                 .Select(node => (XmlElement)node))
             {
                 var d = await ChangeResource(unusedFiles, data);
-                rec = rec.AddFileStatus(ResolveFileStatus(d, unusedFiles));
+                rec = rec.AddFileStatus(ResolveFileStatus(d));
             }
         }
         catch (Exception e)
@@ -44,6 +51,8 @@ internal class ModinfoInfo
         doc.Save(stream);
 
         rec.missed = unusedFiles.Count;
+        Console.WriteLine($"{rec.changed} 변경됨, {rec.ignored} 유지됨, {rec.notFound}, 파일 없음, {rec.missed} modinfo에 없음");
+        Console.WriteLine();
         return rec;
     }
 
@@ -76,10 +85,10 @@ internal class ModinfoInfo
         if (oldHash != newHash) return new Changed(checkPath, oldHash, newHash, path);
         else return new Ignored(checkPath, path);
     }
-    static FileStatus ResolveFileStatus(FileStatus code, List<string> unusedFiles)
+    FileStatus ResolveFileStatus(FileStatus code)
     {
         Console.Write(code.StatusText);
-        if (code.FileExists)
+        if (code.FileExists && unusedFiles != null)
         {
             unusedFiles.Remove(code.FullPath);
         }
