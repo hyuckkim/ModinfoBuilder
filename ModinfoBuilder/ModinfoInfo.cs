@@ -77,9 +77,8 @@ internal class ModinfoInfo
             .FirstOrDefault();
         if (path is null) return new NotFound(checkPath);
 
-        using FileStream stream = File.OpenRead(path);
         string oldHash = node.GetAttribute("md5");
-        string newHash = MD5Util.Calculate(stream);
+        string newHash = MD5Util.CalculatePath(path);
         node.SetAttribute("md5", newHash);
 
         if (oldHash != newHash) return new Changed(checkPath, oldHash, newHash, path);

@@ -3,9 +3,14 @@
 internal static class MD5Util
 {
     static readonly MD5 md5 = MD5.Create();
-    public static string Calculate(FileStream stream)
+    public static string CalculatePath(string path)
     {
+        using FileStream stream = File.OpenRead(path);
         byte[] bytes = stream.ReadAllBytes();
+        return Calculate(bytes);
+    }
+    static string Calculate(byte[] bytes)
+    {
         byte[] res = md5
         .ComputeHash(bytes);
         return res
