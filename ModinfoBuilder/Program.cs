@@ -18,11 +18,10 @@ var modinfoList =
     let modInfo = new FileInfo(path)
     let folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", "")// Remove file name and use paths only
     select new ModinfoInfo(modInfo, folderName);
-    
-// Todo : modinfoInfo 클래스를 만들어서 분리!
+
 foreach (var modinfo in modinfoList)
 {
-    await modinfo.Modify();
+    modinfo.Modify();
     Console.Write(modinfo.Log);
 }
 
