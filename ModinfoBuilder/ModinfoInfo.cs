@@ -10,13 +10,13 @@ namespace ModinfoBuilder;
 
 internal class ModinfoInfo
 {
-    private FileInfo file;
-    private string path;
+    private readonly FileInfo file;
+    private readonly string path;
 
     private readonly IEnumerable<string> resources;
     private List<string>? unusedFiles;
     ModinfoRecord rec = (0, 0, 0, 0);
-    StringBuilder log = new();
+    readonly StringBuilder log = new();
 
     public StringBuilder Log { get => log; }
 
