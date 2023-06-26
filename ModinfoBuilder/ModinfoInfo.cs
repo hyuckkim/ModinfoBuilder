@@ -54,8 +54,8 @@ internal class ModinfoInfo
         using FileStream stream = file.Open(FileMode.Create);
         doc.Save(stream);
 
-        rec.missed = unusedFiles.Count;
-        Log.AppendLine($"{rec.changed} 변경됨, {rec.ignored} 유지됨, {rec.notFound}, 파일 없음, {rec.missed} modinfo에 없음");
+        rec.Missed = unusedFiles.Count;
+        Log.AppendLine($"{rec.Changed} 변경됨, {rec.Ignored} 유지됨, {rec.NotFound}, 파일 없음, {rec.Missed} modinfo에 없음");
         Log.AppendLine();
         return rec;
     }
