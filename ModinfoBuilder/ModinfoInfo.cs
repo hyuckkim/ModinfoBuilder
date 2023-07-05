@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Channels;
-using System.Threading.Tasks;
+﻿using System.Text;
 using System.Xml;
 
 namespace ModinfoBuilder;
@@ -20,7 +15,7 @@ internal class ModinfoInfo
 
     public StringBuilder Log { get => log; }
 
-    public ModinfoInfo(FileInfo file, string path) 
+    public ModinfoInfo(FileInfo file, string path)
     {
         this.file = file;
         this.path = path;
