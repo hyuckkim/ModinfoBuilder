@@ -3,16 +3,24 @@
 internal class MD5Util
 {
     readonly MD5 md5 = MD5.Create();
-    public string CalculatePath(string path)
+    public Task<string> CalculatePath(string path)
     {
-        using FileStream stream = File.OpenRead(path);
-        byte[] bytes = ReadAllBytes(stream);
-        return Calculate(bytes);
+        FileStream stream = File.OpenRead(path);
+        // byte[] bytes = ReadAllBytes(stream);
+        return CalculateAsync(stream);
     }
     string Calculate(byte[] bytes)
     {
         byte[] res = md5
         .ComputeHash(bytes);
+        return res
+            .Aggregate("", (acc, x) => $"{acc}{x:x2}")
+            .ToUpper();
+    }
+    async Task<string> CalculateAsync(FileStream stream)
+    {
+        byte[] res = await md5
+        .ComputeHashAsync(stream);
         return res
             .Aggregate("", (acc, x) => $"{acc}{x:x2}")
             .ToUpper();

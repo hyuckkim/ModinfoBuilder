@@ -13,17 +13,19 @@ Console.WriteLine();
 
 string[] info = rootPath.GetAllModinfo().ToArray();
 
-var modinfoList =
+var modinfoList = (
     from string path in info
     let modInfo = new FileInfo(path)
     let folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", "")// Remove file name and use paths only
-    select new ModinfoInfo(modInfo, folderName);
+    select new ModinfoInfo(modInfo, folderName)
+    ).ToList();
 
-foreach (var modinfo in modinfoList)
+await Task.WhenAll(modinfoList.Select(async m =>
 {
-    modinfo.Modify();
-    Console.Write(modinfo.Log);
-}
+    var r = await m.Modify();
+    Console.Write(m.Log);
+    return r;
+}));
 
 Console.Write("계속하려면 아무 키나 누르십시오...");
 Console.Read();
