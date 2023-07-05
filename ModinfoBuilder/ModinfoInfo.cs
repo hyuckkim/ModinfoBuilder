@@ -11,7 +11,9 @@ internal class ModinfoInfo
     private readonly IEnumerable<string> resources;
     private List<string>? unusedFiles;
     ModinfoRecord rec = (0, 0, 0, 0);
+
     readonly StringBuilder log = new();
+    readonly MD5Util md5 = new();
 
     public StringBuilder Log { get => log; }
 
@@ -73,7 +75,7 @@ internal class ModinfoInfo
         if (path is null) return new NotFound(checkPath);
 
         string oldHash = node.GetAttribute("md5");
-        string newHash = MD5Util.CalculatePath(path);
+        string newHash = md5.CalculatePath(path);
         node.SetAttribute("md5", newHash);
 
         if (oldHash != newHash) return new Changed(checkPath, oldHash, newHash, path);
