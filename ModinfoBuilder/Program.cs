@@ -16,7 +16,7 @@ string[] info = rootPath.GetAllModinfo().ToArray();
 List<ModinfoInfo> modinfoList = (
     from string path in info
     let modInfo = new FileInfo(path)
-    let folderName = Regex.Replace(path, @"[/\\][^/\\]+\..+", "")// Remove file name and use paths only
+    let folderName = Regex.Replace(path, @"[/\\][^/\\]+(\.[^/\\]+)?$", "")// Remove file name and use paths only
     select new ModinfoInfo(modInfo, folderName)
     ).ToList();
 
