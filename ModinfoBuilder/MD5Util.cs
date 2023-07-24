@@ -7,7 +7,10 @@ internal class MD5Util
     {
         FileStream stream = File.OpenRead(path);
         // byte[] bytes = ReadAllBytes(stream);
-        return CalculateAsync(stream);
+        var result = CalculateAsync(stream);
+
+        stream.Close();
+        return result;
     }
 
     private string Calculate(byte[] bytes)
